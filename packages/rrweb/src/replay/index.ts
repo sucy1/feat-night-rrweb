@@ -509,6 +509,14 @@ export class Replayer {
   }
 
   /**
+   * Get the current playback speed.
+   * @returns The current speed multiplier.
+   */
+  public getSpeed(): number {
+    return this.timer.speed;
+  }
+
+  /**
    * This API was designed to be used as play at any time offset.
    * Since we minimized the data collected from recorder, we do not
    * have the ability of undo an event.

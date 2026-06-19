@@ -24,8 +24,9 @@
   export let speed: NonNullable<RRwebPlayerOptions['props']['speed']> = 1;
   export let showController: NonNullable<RRwebPlayerOptions['props']['showController']> = true;
   export let tags: NonNullable<RRwebPlayerOptions['props']['tags']> = {};
-  // color of inactive periods indicator
   export let inactiveColor: NonNullable<RRwebPlayerOptions['props']['inactiveColor']> = '#D4D4D4';
+  export let showSpeedControl: NonNullable<RRwebPlayerOptions['props']['showSpeedControl']> = true;
+  export let timelineStep: NonNullable<RRwebPlayerOptions['props']['timelineStep']> = 5;
 
   let replayer: Replayer;
 
@@ -41,6 +42,19 @@
     toggle: () => void;
     setSpeed: (speed: number) => void;
     toggleSkipInactive: () => void;
+    stepBackward: (seconds?: number) => void;
+    stepForward: (seconds?: number) => void;
+    getSpeed: () => number;
+    play: () => void;
+    pause: () => void;
+    goto: (timeOffset: number, play?: boolean) => void;
+    playRange: (
+      timeOffset: number,
+      endTimeOffset: number,
+      startLooping?: boolean,
+      afterHook?: undefined | (() => void),
+    ) => void;
+    triggerUpdateMeta: () => void;
   } & Controller;
 
   let style: string;
@@ -101,7 +115,6 @@
   export const getMetaData: RRwebPlayerExpose['getMetaData'] = () => replayer.getMetaData();
   export const getReplayer: RRwebPlayerExpose['getReplayer'] = () => replayer;
 
-  // by pass controller methods as public API
   export const toggle: RRwebPlayerExpose['toggle'] = () => {
     controller.toggle();
   };
@@ -128,9 +141,17 @@
   ) => {
     controller.playRange(timeOffset, endTimeOffset, startLooping, afterHook);
   };
+  export const stepBackward: RRwebPlayerExpose['stepBackward'] = (seconds: number = 5) => {
+    controller.stepBackward(seconds);
+  };
+  export const stepForward: RRwebPlayerExpose['stepForward'] = (seconds: number = 5) => {
+    controller.stepForward(seconds);
+  };
+  export const getSpeed: RRwebPlayerExpose['getSpeed'] = () => {
+    return controller.getSpeed();
+  };
 
   onMount(() => {
-    // runtime type check
     if (speedOption !== undefined && typeOf(speedOption) !== 'array') {
       throw new Error('speedOption must be array');
     }
@@ -234,6 +255,8 @@
       {skipInactive}
       {tags}
       {inactiveColor}
+      {showSpeedControl}
+      {timelineStep}
       on:fullscreen={() => toggleFullscreen()}
     />
   {/if}

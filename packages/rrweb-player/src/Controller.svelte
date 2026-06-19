@@ -14,6 +14,8 @@
   } from 'svelte';
   import { formatTime, getInactivePeriods } from './utils';
   import Switch from './components/Switch.svelte';
+  import SpeedControl from './components/SpeedControl.svelte';
+  import Timeline from './components/Timeline.svelte';
 
   const dispatch = createEventDispatcher();
 
@@ -25,6 +27,8 @@
   export let speed = speedOption.length ? speedOption[0] : 1;
   export let tags: Record<string, string> = {};
   export let inactiveColor: string;
+  export let showSpeedControl = true;
+  export let timelineStep = 5;
 
   let currentTime = 0;
   $: {
@@ -36,7 +40,6 @@
     dispatch('ui-update-player-state', { payload: playerState });
   }
   let speedState: 'normal' | 'skipping';
-  let progress: HTMLElement;
   let finished: boolean;
 
   let pauseAt: number | false = false;
@@ -60,13 +63,6 @@
     position: string;
   };
 
-  /**
-   * Calculate the tag position (percent) to be displayed on the progress bar.
-   * @param startTime - The start time of the session.
-   * @param endTime - The end time of the session.
-   * @param tagTime - The time of the tag.
-   * @returns The position of the tag. unit: percentage
-   */
   function position(startTime: number, endTime: number, tagTime: number) {
     const sessionDuration = endTime - startTime;
     const eventDuration = endTime - tagTime;
@@ -76,29 +72,28 @@
 
   let customEvents: CustomEvent[];
   $: customEvents = (() => {
-    const { context } = replayer.service.state;
-    const totalEvents = context.events.length;
-    const start = context.events[0].timestamp;
-    const end = context.events[totalEvents - 1].timestamp;
-    const customEvents: CustomEvent[] = [];
+    try {
+      const { context } = replayer.service.state;
+      const totalEvents = context.events.length;
+      const start = context.events[0].timestamp;
+      const end = context.events[totalEvents - 1].timestamp;
+      const customEvents: CustomEvent[] = [];
 
-    // loop through all the events and find out custom event.
-    context.events.forEach((event) => {
-      /**
-       * we are only interested in custom event and calculate it's position
-       * to place it in player's timeline.
-       */
-      if (event.type === EventType.Custom) {
-        const customEvent = {
-          name: event.data.tag,
-          background: tags[event.data.tag] || 'rgb(73, 80, 246)',
-          position: `${position(start, end, event.timestamp)}%`,
-        };
-        customEvents.push(customEvent);
-      }
-    });
+      context.events.forEach((event) => {
+        if (event.type === EventType.Custom) {
+          const customEvent = {
+            name: event.data.tag,
+            background: tags[event.data.tag] || 'rgb(73, 80, 246)',
+            position: `${position(start, end, event.timestamp)}%`,
+          };
+          customEvents.push(customEvent);
+        }
+      });
 
-    return customEvents;
+      return customEvents;
+    } catch (e) {
+      return [];
+    }
   })();
 
   let inactivePeriods: {
@@ -114,7 +109,6 @@
       const start = context.events[0].timestamp;
       const end = context.events[totalEvents - 1].timestamp;
       const periods = getInactivePeriods(context.events, replayer.config.inactivePeriodThreshold);
-      // calculate the indicator width.
       const getWidth = (
         startTime: number,
         endTime: number,
@@ -133,7 +127,6 @@
         width: `${getWidth(start, end, period[0], period[1])}%`,
       }));
     } catch (e) {
-      // For safety concern, if there is any error, the main function won't be affected.
       return [];
     }
   })();
@@ -217,6 +210,18 @@
     }
   };
 
+  export const stepBackward = (seconds: number = 5) => {
+    const newTime = Math.max(0, currentTime - seconds * 1000);
+    goto(newTime);
+  };
+
+  export const stepForward = (seconds: number = 5) => {
+    const newTime = Math.min(meta.totalTime, currentTime + seconds * 1000);
+    goto(newTime);
+  };
+
+  export const getSpeed = () => speed;
+
   export const playRange = (
     timeOffset: number,
     endTimeOffset: number,
@@ -237,31 +242,8 @@
     replayer.play(timeOffset);
   };
 
-  const handleProgressClick = (event: MouseEvent) => {
-    if (speedState === 'skipping') {
-      return;
-    }
-    const progressRect = progress.getBoundingClientRect();
-    const x = event.clientX - progressRect.left;
-    let percent = x / progressRect.width;
-    if (percent < 0) {
-      percent = 0;
-    } else if (percent > 1) {
-      percent = 1;
-    }
-    const timeOffset = meta.totalTime * percent;
+  const handleSeek = (timeOffset: number) => {
     goto(timeOffset);
-  };
-
-  const handleProgressKeydown = (event: KeyboardEvent) => { 
-    if (speedState === 'skipping') {
-      return;
-    }
-    if (event.key === 'ArrowLeft') {
-      goto(currentTime - 5);
-    } else if (event.key === 'ArrowRight') {
-      goto(currentTime + 5);
-    }
   };
 
   export const setSpeed = (newSpeed: number) => {
@@ -346,53 +328,8 @@
     justify-content: space-around;
     align-items: center;
     border-radius: 0 0 5px 5px;
-  }
-
-  .rr-timeline {
-    width: 80%;
-    display: flex;
-    align-items: center;
-  }
-
-  .rr-timeline__time {
-    display: inline-block;
-    width: 100px;
-    text-align: center;
-    color: #11103e;
-  }
-
-  .rr-progress {
-    flex: 1;
-    height: 12px;
-    background: #eee;
-    position: relative;
-    border-radius: 3px;
-    cursor: pointer;
+    padding: 0 20px;
     box-sizing: border-box;
-    border-top: solid 4px #fff;
-    border-bottom: solid 4px #fff;
-  }
-
-  .rr-progress.disabled {
-    cursor: not-allowed;
-  }
-
-  .rr-progress__step {
-    height: 100%;
-    position: absolute;
-    left: 0;
-    top: 0;
-    background: #e0e1fe;
-  }
-
-  .rr-progress__handler {
-    width: 20px;
-    height: 20px;
-    border-radius: 10px;
-    position: absolute;
-    top: 2px;
-    transform: translate(-50%, -50%);
-    background: rgb(73, 80, 246);
   }
 
   .rr-controller__btns {
@@ -400,6 +337,7 @@
     align-items: center;
     justify-content: center;
     font-size: 13px;
+    gap: 4px;
   }
 
   .rr-controller__btns button {
@@ -413,9 +351,14 @@
     border: none;
     border-radius: 50%;
     cursor: pointer;
+    transition: background-color 0.2s;
   }
 
-  .rr-controller__btns button:active {
+  .rr-controller__btns button:hover:not(:disabled):not(.active) {
+    background: #f0f1ff;
+  }
+
+  .rr-controller__btns button:active:not(:disabled):not(.active) {
     background: #e0e1fe;
   }
 
@@ -426,46 +369,26 @@
 
   .rr-controller__btns button:disabled {
     cursor: not-allowed;
+    opacity: 0.5;
   }
 </style>
 
 {#if showController}
   <div class="rr-controller">
-    <div class="rr-timeline">
-      <span class="rr-timeline__time">{formatTime(currentTime)}</span>
-      <div
-        class="rr-progress"
-        class:disabled={speedState === 'skipping'}
-        bind:this={progress}
-        on:click={handleProgressClick}
-        on:keydown={handleProgressKeydown}
-      >
-        <div
-          class="rr-progress__step"
-          style="width: {percentage}"
-        />
-        {#each inactivePeriods as period}
-          <div
-            title={period.name}
-            style="width: {period.width};height: 4px;position: absolute;background: {period.background};left:
-            {period.position};"
-          />
-        {/each}
-        {#each customEvents as event}
-          <div
-            title={event.name}
-            style="width: 10px;height: 5px;position: absolute;top:
-            2px;transform: translate(-50%, -50%);background: {event.background};left:
-            {event.position};"
-          />
-        {/each}
-
-        <div class="rr-progress__handler" style="left: {percentage}" />
-      </div>
-      <span class="rr-timeline__time">{formatTime(meta.totalTime)}</span>
-    </div>
+    <Timeline
+      {currentTime}
+      totalTime={meta.totalTime}
+      {percentage}
+      {inactivePeriods}
+      {customEvents}
+      disabled={speedState === 'skipping'}
+      onSeek={handleSeek}
+      stepSeconds={timelineStep}
+      onStepBackward={(seconds) => stepBackward(seconds)}
+      onStepForward={(seconds) => stepForward(seconds)}
+    />
     <div class="rr-controller__btns">
-      <button on:click={toggle}>
+      <button on:click={toggle} aria-label={playerState === 'playing' ? 'Pause' : 'Play'}>
         {#if playerState === 'playing'}
           <svg
             class="icon"
@@ -510,22 +433,21 @@
           </svg>
         {/if}
       </button>
-      {#each speedOption as s}
-        <button
-          class:active={s === speed && speedState !== 'skipping'}
-          on:click={() => setSpeed(s)}
-          disabled={speedState === 'skipping'}
-        >
-          {s}x
-        </button>
-      {/each}
+      {#if showSpeedControl}
+        <SpeedControl
+          {speed}
+          {speedOption}
+          {speedState}
+          onChange={setSpeed}
+        />
+      {/if}
       <Switch
         id="skip"
         bind:checked={skipInactive}
         disabled={speedState === 'skipping'}
         label="skip inactive"
       />
-      <button on:click={() => dispatch('fullscreen')}>
+      <button on:click={() => dispatch('fullscreen')} aria-label="Fullscreen">
         <svg
           class="icon"
           viewBox="0 0 1024 1024"

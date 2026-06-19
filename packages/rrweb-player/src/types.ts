@@ -2,6 +2,41 @@ import type { eventWithTime } from '@rrweb/types';
 import type { Replayer, playerConfig } from '@rrweb/replay';
 import type { Mirror } from 'rrweb-snapshot';
 
+export type PlaybackSpeed = 1 | 2 | 4 | 8;
+
+export type CustomEventTag = {
+  name: string;
+  background: string;
+  position: string;
+};
+
+export type InactivePeriod = {
+  name: string;
+  background: string;
+  position: string;
+  width: string;
+};
+
+export type SpeedControlProps = {
+  speed: number;
+  speedOption: number[];
+  speedState: 'normal' | 'skipping';
+  disabled?: boolean;
+  onChange: (speed: number) => void;
+};
+
+export type TimelineProps = {
+  currentTime: number;
+  totalTime: number;
+  percentage: string;
+  inactivePeriods: InactivePeriod[];
+  customEvents: CustomEventTag[];
+  disabled?: boolean;
+  onSeek: (timeOffset: number) => void;
+  onStepBackward?: (seconds?: number) => void;
+  onStepForward?: (seconds?: number) => void;
+};
+
 export type RRwebPlayerOptions = {
   target: HTMLElement;
   props: {
@@ -55,6 +90,16 @@ export type RRwebPlayerOptions = {
      * @defaultValue `#D4D4D4`
      */
     inactiveColor?: string;
+    /**
+     * Whether to show the fast forward speed control buttons
+     * @defaultValue `true`
+     */
+    showSpeedControl?: boolean;
+    /**
+     * Step size (in seconds) for timeline keyboard navigation
+     * @defaultValue `5`
+     */
+    timelineStep?: number;
   } & Partial<playerConfig>;
 };
 
@@ -83,4 +128,18 @@ export type RRwebPlayerExpose = {
     startLooping?: boolean,
     afterHook?: undefined | (() => void),
   ) => void;
+  /**
+   * Step backward by the specified number of seconds
+   * @param seconds - Number of seconds to step backward, defaults to 5
+   */
+  stepBackward: (seconds?: number) => void;
+  /**
+   * Step forward by the specified number of seconds
+   * @param seconds - Number of seconds to step forward, defaults to 5
+   */
+  stepForward: (seconds?: number) => void;
+  /**
+   * Get the current playback speed
+   */
+  getSpeed: () => number;
 };
