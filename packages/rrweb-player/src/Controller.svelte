@@ -248,7 +248,7 @@
   };
 
   const handleSeek = (timeOffset: number) => {
-    goto(timeOffset);
+    goto(timeOffset, false);
   };
 
   export const setSpeed = (newSpeed: number) => {
