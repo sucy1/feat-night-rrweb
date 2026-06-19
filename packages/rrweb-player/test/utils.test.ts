@@ -86,7 +86,10 @@ describe('rrweb-player utils', () => {
   });
 
   describe('getInactivePeriods', () => {
-    const createEvents = (timestamps: number[], hasInteraction = true): eventWithTime[] => {
+    const createEvents = (
+      timestamps: number[],
+      hasInteraction = true,
+    ): eventWithTime[] => {
       return timestamps.map((ts, index) => {
         if (index === 0) {
           return {

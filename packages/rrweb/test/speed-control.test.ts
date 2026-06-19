@@ -3,14 +3,8 @@ import * as path from 'path';
 import type * as puppeteer from 'puppeteer';
 import { vi } from 'vitest';
 import 'construct-style-sheets-polyfill';
-import {
-  launchPuppeteer,
-  sampleEvents as events,
-} from './utils';
-import {
-  createPlayerService,
-  createSpeedService,
-} from '../src/replay/machine';
+import { launchPuppeteer, sampleEvents as events } from './utils';
+import { createPlayerService, createSpeedService } from '../src/replay/machine';
 import { Timer } from '../src/replay/timer';
 import { EventType } from '@rrweb/types';
 
