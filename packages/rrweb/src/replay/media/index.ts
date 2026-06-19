@@ -79,9 +79,11 @@ export class MediaManager {
     if (mediaState.isPlaying) {
       const differenceBetweenCurrentTimeAndMediaMutationTimestamp =
         time - mediaState.lastInteractionTimeOffset;
+      const playbackSpeed = this.speedService.state.context.timer.speed;
       const mediaPlaybackOffset =
         (differenceBetweenCurrentTimeAndMediaMutationTimestamp / 1000) *
-        mediaState.playbackRate;
+        mediaState.playbackRate *
+        playbackSpeed;
 
       const duration = 'duration' in target && target.duration;
 

@@ -178,11 +178,12 @@
   };
 
   export const play = () => {
-    if (playerState !== 'paused') {
+    if (playerState === 'playing') {
       return;
     }
     if (finished) {
-      replayer.play();
+      currentTime = 0;
+      replayer.play(0);
       finished = false;
     } else {
       replayer.play(currentTime);
@@ -190,23 +191,27 @@
   };
 
   export const pause = () => {
-    if (playerState !== 'playing') {
+    if (playerState === 'paused') {
       return;
     }
+    currentTime = replayer.getCurrentTime();
     replayer.pause();
     pauseAt = false;
+    loop = null;
   };
 
   export const goto = (timeOffset: number, play?: boolean) => {
-    currentTime = timeOffset;
+    const clampedTime = Math.max(0, Math.min(meta.totalTime, timeOffset));
+    currentTime = clampedTime;
     pauseAt = false;
     finished = false;
+    loop = null;
     const resumePlaying =
       typeof play === 'boolean' ? play : playerState === 'playing';
     if (resumePlaying) {
-      replayer.play(timeOffset);
+      replayer.play(clampedTime);
     } else {
-      replayer.pause(timeOffset);
+      replayer.pause(clampedTime);
     }
   };
 

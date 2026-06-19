@@ -16,6 +16,9 @@
 
   let progress: HTMLElement;
   let isDragging = false;
+  let isHovering = false;
+  let hoverTime = 0;
+  let hoverPosition = '0%';
 
   const getTimeOffsetFromEvent = (event: MouseEvent | TouchEvent): number => {
     if (!progress) return 0;
@@ -38,6 +41,42 @@
     return totalTime * percent;
   };
 
+  const getPercentFromEvent = (event: MouseEvent | TouchEvent): number => {
+    if (!progress) return 0;
+    const progressRect = progress.getBoundingClientRect();
+    let clientX: number;
+
+    if (event instanceof MouseEvent) {
+      clientX = event.clientX;
+    } else if (event.touches && event.touches.length > 0) {
+      clientX = event.touches[0].clientX;
+    } else if (event.changedTouches && event.changedTouches.length > 0) {
+      clientX = event.changedTouches[0].clientX;
+    } else {
+      return 0;
+    }
+
+    const x = clientX - progressRect.left;
+    let percent = x / progressRect.width;
+    return Math.max(0, Math.min(1, percent));
+  };
+
+  const updateHoverPosition = (event: MouseEvent) => {
+    if (!progress || disabled) return;
+    const percent = getPercentFromEvent(event);
+    hoverTime = totalTime * percent;
+    hoverPosition = `${percent * 100}%`;
+  };
+
+  const handleMouseEnter = () => {
+    if (disabled) return;
+    isHovering = true;
+  };
+
+  const handleMouseLeave = () => {
+    isHovering = false;
+  };
+
   const handleProgressClick = (event: MouseEvent) => {
     if (disabled) return;
     const timeOffset = getTimeOffsetFromEvent(event);
@@ -46,6 +85,7 @@
 
   const handleMouseDown = (event: MouseEvent) => {
     if (disabled) return;
+    event.preventDefault();
     isDragging = true;
     const timeOffset = getTimeOffsetFromEvent(event);
     onSeek(timeOffset);
@@ -59,7 +99,9 @@
   };
 
   const handleMouseUp = () => {
-    isDragging = false;
+    if (isDragging) {
+      isDragging = false;
+    }
   };
 
   const handleTouchStart = (event: TouchEvent) => {
@@ -113,6 +155,7 @@
       window.addEventListener('mouseup', handleMouseUp);
       window.addEventListener('touchmove', handleTouchMove, { passive: false });
       window.addEventListener('touchend', handleTouchEnd);
+      window.addEventListener('touchcancel', handleTouchEnd);
     }
     return () => {
       if (typeof window !== 'undefined') {
@@ -120,6 +163,7 @@
         window.removeEventListener('mouseup', handleMouseUp);
         window.removeEventListener('touchmove', handleTouchMove);
         window.removeEventListener('touchend', handleTouchEnd);
+        window.removeEventListener('touchcancel', handleTouchEnd);
       }
     };
   });
@@ -146,6 +190,7 @@
     flex: 1;
     padding: 8px 0;
     cursor: pointer;
+    position: relative;
   }
 
   .rr-progress {
@@ -159,7 +204,8 @@
     transition: height 0.2s;
   }
 
-  .rr-progress-wrapper:hover .rr-progress {
+  .rr-progress-wrapper:hover .rr-progress,
+  .dragging .rr-progress {
     height: 14px;
   }
 
@@ -175,10 +221,11 @@
     top: 0;
     background: #e0e1fe;
     border-radius: 3px;
-    transition: background-color 0.2s;
+    transition: background-color 0.2s, width 0.05s linear;
   }
 
-  .rr-progress-wrapper:hover .rr-progress__step {
+  .rr-progress-wrapper:hover .rr-progress__step,
+  .dragging .rr-progress__step {
     background: #c4c6ff;
   }
 
@@ -193,6 +240,7 @@
     box-shadow: 0 2px 6px rgba(73, 80, 246, 0.4);
     transition: width 0.2s, height 0.2s, box-shadow 0.2s;
     z-index: 2;
+    cursor: grab;
   }
 
   .rr-progress-wrapper:hover .rr-progress__handler,
@@ -200,6 +248,42 @@
     width: 24px;
     height: 24px;
     box-shadow: 0 4px 12px rgba(73, 80, 246, 0.5);
+  }
+
+  .dragging .rr-progress__handler {
+    cursor: grabbing;
+  }
+
+  .rr-progress__tooltip {
+    position: absolute;
+    top: -28px;
+    transform: translateX(-50%);
+    background: #11103e;
+    color: #fff;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s;
+    white-space: nowrap;
+    z-index: 3;
+  }
+
+  .rr-progress__tooltip::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 4px solid transparent;
+    border-top-color: #11103e;
+  }
+
+  .rr-progress-wrapper:hover .rr-progress__tooltip,
+  .dragging .rr-progress__tooltip {
+    opacity: 1;
   }
 </style>
 
@@ -215,6 +299,9 @@
     aria-valuemax={totalTime}
     aria-valuenow={Math.round(currentTime)}
     on:keydown={handleKeydown}
+    on:mouseenter={handleMouseEnter}
+    on:mouseleave={handleMouseLeave}
+    on:mousemove={updateHoverPosition}
   >
     <div
       class="rr-progress"
@@ -237,6 +324,12 @@
           style="width: 10px;height: 5px;position: absolute;top: 2px;transform: translate(-50%, -50%);background: {event.background};left: {event.position};"
         />
       {/each}
+      <div
+        class="rr-progress__tooltip"
+        style="left: {isHovering || isDragging ? hoverPosition : percentage}"
+      >
+        {formatTime(isDragging ? currentTime : hoverTime)}
+      </div>
       <div class="rr-progress__handler" style="left: {percentage}" role="presentation" />
     </div>
   </div>
